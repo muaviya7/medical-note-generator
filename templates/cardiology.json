@@ -1,0 +1,10 @@
+{
+    "template": "Cardiology Note",
+    "fields": [
+        "Patient Name",
+        "Age",
+        "Symptoms",
+        "Diagnosis",
+        "Treatment Plan"
+    ]
+}

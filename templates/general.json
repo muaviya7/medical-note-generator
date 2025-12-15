@@ -1,0 +1,11 @@
+{
+    "template": "General Medical Note",
+    "fields": [
+        "Patient Name",
+        "Age",
+        "Chief Complaint",
+        "History of Present Illness",
+        "Assessment",
+        "Plan"
+    ]
+}
