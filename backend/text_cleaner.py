@@ -6,6 +6,10 @@ import os
 import sys
 import time
 from prompts import text_cleaner_prompt
+from config import (
+    MODEL_PATH, CPU_THREADS, CONTEXT_SIZE, GPU_LAYERS,
+    MAX_TOKENS_CLEANER, TEMPERATURE, TOP_P, REPEAT_PENALTY
+)
 
 # Configure logging
 LOG_DIR = "logs"
@@ -23,19 +27,16 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Model path
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "mistral-7b-instruct-v0.2.Q4_K_M.gguf")
-
 try:
-    # Initialize Mistral model for CPU
+    # Initialize Mistral model
     model = Llama(
         model_path=MODEL_PATH,
-        n_ctx=4096,
-        n_threads=4,
-        n_gpu_layers=0,
+        n_ctx=CONTEXT_SIZE,
+        n_threads=CPU_THREADS,
+        n_gpu_layers=GPU_LAYERS,
         verbose=False
     )
-    logger.info(" Mistral model loaded")
+    logger.info(f"Mistral model loaded (threads={CPU_THREADS})")
     
 except Exception as e:
     logger.error(f"Failed to load Mistral model: {str(e)}", exc_info=True)
