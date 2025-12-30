@@ -5,11 +5,25 @@ import os
 import sys
 import json
 import time
-from prompts import note_generator_prompt
-from config import (
+from pydantic import BaseModel
+from typing import Dict, Any
+from .prompts import note_generator_prompt
+from .config import (
     MODEL_PATH, CPU_THREADS, CONTEXT_SIZE, GPU_LAYERS,
     MAX_TOKENS_NOTE_GEN, TEMPERATURE, TOP_P, REPEAT_PENALTY
 )
+from .database import get_template
+
+# Pydantic Models
+class GenerateNoteRequest(BaseModel):
+    cleaned_text: str
+    template_name: str
+
+class GenerateNoteResponse(BaseModel):
+    success: bool
+    medical_note: Dict[str, Any] = {}
+    time_elapsed: float = 0.0
+    error: str | None = None
 
 # Configure logging
 LOG_DIR = "logs"
@@ -36,7 +50,6 @@ try:
         n_gpu_layers=GPU_LAYERS,
         verbose=False
     )
-    logger.info(f"Mistral model loaded (threads={CPU_THREADS})")
     
 except Exception as e:
     logger.error(f"Failed to load Mistral model: {str(e)}", exc_info=True)
@@ -45,25 +58,28 @@ except Exception as e:
 
 
 def load_template(template_name):
-    """Load a JSON template from the templates directory"""
-    template_path = os.path.join(os.path.dirname(__file__), "..", "templates", template_name)
-    try:
-        with open(template_path, 'r') as f:
-            template_data = json.load(f)
-            
-        # If template has a 'fields' list, convert it to a dict structure
-        if 'fields' in template_data and isinstance(template_data['fields'], list):
-            template_dict = {}
-            for field in template_data['fields']:
-                # Convert field names to lowercase with underscores
-                key = field.lower().replace(' / ', '_').replace(' ', '_').replace('(', '').replace(')', '')
-                template_dict[key] = ""
-            return template_dict
+    """
+    Load a template from database by name
+    
+    Args:
+        template_name: Name of template (no .json extension needed)
         
-        return template_data
-    except Exception as e:
-        logger.error(f"Failed to load template {template_name}: {str(e)}")
-        return None
+    Returns:
+        Dict with template fields or None if not found
+    """
+    # Remove .json extension if present
+    if template_name.endswith('.json'):
+        template_name = template_name[:-5]
+    
+    # Fetch from database
+    template_fields = get_template(template_name)
+    
+    if template_fields:
+        logger.info(f"Loaded template '{template_name}' from database")
+        return template_fields
+    
+    logger.error(f"Template '{template_name}' not found in database")
+    return None
 
 
 def generate_note_from_text(cleaned_text, template_json):
@@ -149,44 +165,3 @@ def generate_note_from_text(cleaned_text, template_json):
 
 
 # Test case
-if __name__ == "__main__":
-    # Test data
-    test_text = """A 45-year-old male presented with a three-day history of fever, cough, body aches, and a mild headache. The fever reached approximately 101-102°F (38.3-38.9°C), mostly in the evenings. He denied chest pain, shortness of breath, nausea, vomiting, or diarrhea. The patient reported taking paracetamol 500 mg twice daily for temporary relief. He denied known allergies, diabetes, or hypertension.
-
-Vital signs:
-- Temperature: 101.4°F (38.6°C)
-- Blood pressure: 130/85 mmHg
-- Pulse: 92 bpm
-- Respiratory rate: 18 breaths per minute
-- Oxygen saturation: 98% on room air
-
-Physical examination:
-- Lungs: Clear
-- Heart: Normal
-- Abdomen: Soft, non-tender
-
-Plan:
-- Initiate azithromycin 500 mg once daily for three days
-- Advise fluids and rest
-- Schedule follow-up in three days if symptoms persist or worsen."""
-    
-    print("="*60)
-    print("MEDICAL NOTE GENERATOR - TEST CASE")
-    print("="*60)
-    print("\nLoading general template...")
-    
-    # Load general template
-    template = load_template("general.json")
-    if template:
-        print(f"Template structure: {json.dumps(template, indent=2)}")
-        print(f"\nGenerating note from test text...")
-        print("-"*60)
-        
-        result = generate_note_from_text(test_text, template)
-        
-        print("\n" + "="*60)
-        print("GENERATED NOTE:")
-        print("="*60)
-        print(json.dumps(result, indent=2))
-    else:
-        print("Failed to load template")

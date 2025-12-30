@@ -49,3 +49,15 @@ REPEAT_PENALTY = 1.1
 # Penalizes repeating the same words/phrases
 # 1.0 = no penalty, >1.0 = discourages repetition
 # Prevents model from getting stuck in loops like "patient patient patient..."
+
+# Document upload settings
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_EXTENSIONS = ['.pdf', '.docx']
+MIN_TEMPLATE_FIELDS = 3
+MAX_TEMPLATE_FIELDS = 50
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..", "templates")
+
+# Server settings
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+RELOAD = False

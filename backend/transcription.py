@@ -150,30 +150,3 @@ def transcribe_audio(file_path):
 
 
 # Test code
-if __name__ == "__main__":
-    try:
-        print("\n" + "="*60)
-        print("Running transcription test...")
-        print("="*60)
-        
-        test_audio_path = r"C:\Users\Bilal rashid\Downloads\audio\transcription_test_2min.wav"
-        
-        if os.path.exists(test_audio_path):
-            result = transcribe_audio(test_audio_path)
-            
-            if result['success']:
-                print(f"\n{'='*60}")
-                print("📄 TRANSCRIPTION RESULT:")
-                print(f"{'='*60}")
-                print(result['text'])
-                print(f"{'='*60}")
-                print(f"Segments: {result['segments']} | Language: {result['language']} | Duration: {result['duration']:.2f}s")
-                print(f"{'='*60}\n")
-            else:
-                print(f"\n Failed: {result['error']}\n")
-        else:
-            print(f"\n Test file not found: {test_audio_path}\n")
-        
-    except Exception as e:
-        logger.error(f"Error: {str(e)}")
-        print(f"\n Error: {str(e)}\n")

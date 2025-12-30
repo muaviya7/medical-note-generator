@@ -5,11 +5,22 @@ import logging
 import os
 import sys
 import time
-from prompts import text_cleaner_prompt
-from config import (
+from pydantic import BaseModel
+from .prompts import text_cleaner_prompt
+from .config import (
     MODEL_PATH, CPU_THREADS, CONTEXT_SIZE, GPU_LAYERS,
     MAX_TOKENS_CLEANER, TEMPERATURE, TOP_P, REPEAT_PENALTY
 )
+
+# Pydantic Models
+class CleanTextRequest(BaseModel):
+    transcribed_text: str
+
+class CleanTextResponse(BaseModel):
+    success: bool
+    cleaned_text: str = ""
+    time_elapsed: float = 0.0
+    error: str = ""
 
 # Configure logging
 LOG_DIR = "logs"
@@ -36,7 +47,6 @@ try:
         n_gpu_layers=GPU_LAYERS,
         verbose=False
     )
-    logger.info(f"Mistral model loaded (threads={CPU_THREADS})")
     
 except Exception as e:
     logger.error(f"Failed to load Mistral model: {str(e)}", exc_info=True)
@@ -188,33 +198,3 @@ def clean_text(transcribed_text):
 
 
 # Test code
-if __name__ == "__main__":
-    try:
-        print("\n" + "="*70)
-        print("Testing Medical Text Cleaning & Restructuring Pipeline")
-        print("="*70)
-        
-        # Test transcribed text
-        test_text = "uh okay so patient is a 45 year old male um came in today complaining of fever and uh cough since like past three days he says the fever is around one zero one maybe one zero two degrees uh fahrenheit mostly in evenings um also complaining of body aches and uh mild headache no chest pain uh no shortness of breath denies nausea vomiting or diarrhea patient says he has been taking paracetamol five hundred mg like two times a day which gives temporary relief um he uh denies any known allergies no history of diabetes or hypertension uh vitals today temperature is one zero one point four blood pressure one three zero over eight five pulse around ninety two respiratory rate eighteen oxygen saturation ninety eight percent on room air uh lungs clear on auscultation no wheezing uh heart sounds normal abdomen soft non tender uh plan is to uh start patient on azithromycin five hundred mg once daily for three days advise fluids rest and follow up in three days if symptoms persistor worsen"
-        
-        print("\n Input (Raw Transcription):")
-        print("-" * 70)
-        print(test_text[:200] + "...")
-        
-        # Run pipeline
-        result = clean_text(test_text)
-        
-        if result['success']:
-            print("\n" + "="*70)
-            print(" FORMATTED TEXT:")
-            print("="*70)
-            print(result['formatted_text'])
-            
-        else:
-            print(f"\n❌ Pipeline failed: {result['error']}")
-        
-        print("\n" + "="*70)
-        
-    except Exception as e:
-        logger.error(f"Test error: {str(e)}", exc_info=True)
-        print(f"\n❌ Test failed: {str(e)}\n")

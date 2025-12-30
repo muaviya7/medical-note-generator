@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+#models
+.gguf
+backend/models/*.gguf
+backend/models/
+!backend/models/.gitkeep

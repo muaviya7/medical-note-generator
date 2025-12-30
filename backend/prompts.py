@@ -72,7 +72,7 @@ You work as a clinical documentation assistant. Your job is to read conversation
 
 ## WHAT YOU RECEIVE:
 1. Conversational medical text - this could be a transcribed appointment, clinical notes, or doctor dictation
-2. A JSON template with predefined fields that need to be filled
+2. A JSON template with predefined fields that need to be filled (fields include descriptions of what data should go in each)
 
 ## WHAT YOU MUST DO:
 1. Read through the entire conversational text carefully
@@ -80,7 +80,8 @@ You work as a clinical documentation assistant. Your job is to read conversation
 3. Extract that information word-for-word from the text (don't paraphrase unless necessary for clarity)
 4. Place extracted info into the corresponding template fields
 5. Follow SOAP structure: Subjective → Objective → Assessment → Plan
-6. Return ONLY valid JSON - nothing before, nothing after
+6. Use field descriptions to understand what goes where
+7. Return ONLY valid JSON - nothing before, nothing after
 
 ## SOAP STRUCTURE BREAKDOWN:
 
@@ -127,6 +128,7 @@ You work as a clinical documentation assistant. Your job is to read conversation
 7. **Return VALID JSON ONLY** - No explanations, no markdown formatting, no extra text
 8. **Keep it factual** - You're documenting, not diagnosing
 9. **Every field must have a value** - Either the extracted info OR "Not mentioned", never leave blank
+10. **Use field descriptions as guidance** - Each field has a description telling you what type of data belongs there
 
 ## OUTPUT FORMAT:
 - Must be valid JSON that can be parsed directly
@@ -152,74 +154,38 @@ Looking at this, I'm thinking we've got a community-acquired pneumonia here, rig
 
 **Example Template:**
 {{
-  "patient_name": "",
-  "age": "",
-  "gender": "",
-  "date_of_birth": "",
-  "chief_complaint": "",
-  "history_of_present_illness": "",
-  "past_medical_history": "",
-  "current_medications": "",
-  "allergies": "",
-  "social_history": "",
-  "family_history": "",
-  "review_of_systems": {{
-    "constitutional": "",
-    "cardiovascular": "",
-    "respiratory": "",
-    "gastrointestinal": ""
+  "patient_name": "Full name of the patient",
+  "age_gender": "Age and gender of patient",
+  "date_of_visit": "Visit date in DD-MMM-YYYY or format shown",
+  "chief_complaint": "Main reason for visit or primary symptom",
+  "history_of_present_illness": "Detailed description of current symptoms and timeline",
+  "relevant_medical_history": "Previous medical conditions, surgeries, or chronic illnesses",
+  "current_medications_allergies": "List of current medications with dosage and known allergies",
+  "physical_examination": {{
+    "vital_signs": "Temperature, BP, heart rate, respiratory rate, O2 saturation",
+    "general_findings": "Overall physical exam findings and observations"
   }},
-  "vital_signs": {{
-    "blood_pressure": "",
-    "heart_rate": "",
-    "temperature": "",
-    "oxygen_saturation": ""
-  }},
-  "physical_exam": {{
-    "general": "",
-    "cardiovascular": "",
-    "respiratory": "",
-    "abdomen": ""
-  }},
-  "assessment": "",
-  "plan": "",
-  "follow_up": ""
+  "assessment": "Doctor's diagnosis or clinical impression",
+  "plan": "Treatment plan, prescriptions, and recommendations",
+  "follow_up": "Follow-up instructions and timeline"
 }}
 
 **Example Output:**
 {{
   "patient_name": "Mrs. Johnson",
-  "age": "58",
-  "gender": "Female",
-  "date_of_birth": "Not mentioned",
+  "age_gender": "58 years old, Female",
+  "date_of_visit": "Not mentioned",
   "chief_complaint": "Persistent cough for 2 weeks",
-  "history_of_present_illness": "Patient reports productive cough with yellowish sputum for 2 weeks, shortness of breath especially when climbing stairs. Had chills 3 days ago. Denies fever or chest pain.",
-  "past_medical_history": "Hypertension, Type 2 diabetes",
-  "current_medications": "Metformin 1000mg twice daily, Lisinopril 20mg once daily",
-  "allergies": "Penicillin - causes rash",
-  "social_history": "Former smoker, quit 5 years ago, previously smoked 1 pack per day for 20 years",
-  "family_history": "Not mentioned",
-  "review_of_systems": {{
-    "constitutional": "Chills 3 days ago, no fever",
-    "cardiovascular": "Denies chest pain",
-    "respiratory": "Shortness of breath with exertion, productive cough",
-    "gastrointestinal": "Not mentioned"
+  "history_of_present_illness": "Patient reports productive cough with yellowish sputum for 2 weeks, shortness of breath especially when climbing stairs. Had chills 3 days ago. Denies fever or chest pain. Former smoker, quit 5 years ago, previously smoked 1 pack per day for 20 years.",
+  "relevant_medical_history": "Hypertension, Type 2 diabetes",
+  "current_medications_allergies": "Medications: Metformin 1000mg twice daily, Lisinopril 20mg once daily. Allergies: Penicillin - causes rash",
+  "physical_examination": {{
+    "vital_signs": "BP: 142/88 mmHg, HR: 92 bpm, RR: 20/min, Temperature: 100.2°F, O2 Saturation: 94% on room air, Weight: 165 lbs",
+    "general_findings": "Patient appears mildly uncomfortable. Lungs: Crackles in right lower lobe with decreased breath sounds in that area, left lung clear to auscultation. Heart: Regular rate and rhythm, no murmurs. Abdomen: Soft, non-tender. No peripheral edema."
   }},
-  "vital_signs": {{
-    "blood_pressure": "142/88 mmHg",
-    "heart_rate": "92 bpm",
-    "temperature": "100.2°F",
-    "oxygen_saturation": "94% on room air"
-  }},
-  "physical_exam": {{
-    "general": "Mildly uncomfortable appearance",
-    "cardiovascular": "Regular rate and rhythm, no murmurs",
-    "respiratory": "Crackles in right lower lobe, decreased breath sounds right lower lobe, left lung clear",
-    "abdomen": "Soft, non-tender"
-  }},
-  "assessment": "Community-acquired pneumonia affecting right lower lobe in patient with penicillin allergy",
-  "plan": "Start azithromycin 500mg on day 1, then 250mg daily for 4 days. Order chest X-ray, CBC, and CMP. Patient to increase fluid intake and rest at home. Use acetaminophen 650mg every 6 hours as needed for fever or discomfort.",
-  "follow_up": "Follow up in 1 week or sooner if worsening shortness of breath or high fever develops"
+  "assessment": "Community-acquired pneumonia, right lower lobe, in patient with penicillin allergy",
+  "plan": "Start azithromycin 500mg on day 1, then 250mg daily for 4 days. Order chest X-ray to confirm diagnosis. Order CBC and CMP. Patient instructed to increase fluid intake and rest at home. Acetaminophen 650mg every 6 hours as needed for fever or discomfort.",
+  "follow_up": "Follow up in 1 week or sooner if worsening shortness of breath or high fever develops. Patient should call if cough not improved in 3-4 days."
 }}
 
 ---
@@ -236,12 +202,140 @@ Looking at this, I'm thinking we've got a community-acquired pneumonia here, rig
 
 ---
 
-Now extract information from the medical text and fill the template above. Follow these rules:
-- Start your response with opening brace
+Now extract information from the medical text and fill the template above. Remember:
+- Each field has a description (the value in the template) telling you what type of data belongs there
+- Use those descriptions as guidance for what to extract
+- For nested objects (like physical_examination), fill each sub-field according to its description
+- Start your response with opening brace {{
 - Return only valid JSON matching the template structure
 - Use "Not mentioned" for any missing information
 - Do not add explanations or extra text
 
 Begin your JSON response now:"""
+    
+    return prompt
+
+
+def template_extraction_prompt(document_text):
+    """
+    Prompt for extracting field structure from a medical document/form
+    """
+    prompt = f"""You're analyzing a medical form to create a TEMPLATE (not extract data). Your job is to identify field names and write DESCRIPTIONS of what type of data belongs in each field.
+
+CRITICAL RULES:
+- DO NOT copy actual data from the document (names, numbers, dates, etc.)
+- Write DESCRIPTIONS only: "Name of the patient" NOT "John Doe"
+- Write data type descriptions: "Age in years" NOT 45
+- Write format descriptions: "Temperature in F or C" NOT 100.2
+
+Your job:
+- Find all field labels (Patient Name, BP, etc.)
+- For each field, write a description of what DATA TYPE goes there
+- If a field has sub-fields (like vital signs), show them as nested objects
+- Keep medical terms as-is
+
+Output format - JSON with field names as keys, DESCRIPTIONS as values (NOT actual data):
+
+Simple field (string):
+"patient_name": "Name of the patient"
+
+Complex field with sub-parts (object):
+"physical_examination": {{
+  "vital_signs": {{
+    "temperature": "Body temperature in F or C",
+    "blood_pressure": "BP reading in mmHg format (systolic/diastolic)",
+    "heart_rate": "Pulse rate in bpm",
+    "respiratory_rate": "Breathing rate per minute",
+    "oxygen_saturation": "O2 saturation percentage"
+  }},
+  "general_findings": "Overall physical exam observations"
+}}
+
+LABELING RULES:
+- Group related measurements together as nested objects
+- Vital signs (temp, BP, HR, RR, O2) should be under a vital_signs object
+- Lab results should be grouped under lab_results object
+- Each sub-field needs its own clear description
+- Use snake_case for all field names (patient_name, blood_pressure)
+
+EXAMPLE INPUT:
+Patient Name: John Doe
+Age: 45
+Sex: Male
+Date: 30-Dec-2025
+
+Chief Complaint:
+Persistent cough and mild fever for 5 days.
+
+History of Present Illness:
+Patient reports a dry cough for the last 5 days, associated with low-grade fever and fatigue.
+
+Past Medical History:
+Hypertension for 5 years.
+
+Medications:
+Lisinopril 10 mg once daily.
+
+Physical Examination:
+Temperature: 100.2 F
+Blood Pressure: 135/85 mmHg
+Heart Rate: 88 bpm
+Lungs: Mild wheezing
+
+Assessment:
+Acute viral upper respiratory infection.
+
+Plan:
+- Increase fluid intake and rest
+- Paracetamol 500 mg as needed
+- Follow-up in 5 days
+
+CORRECT OUTPUT (descriptions of data types):
+{{
+  "patient_name": "Full name of the patient",
+  "age": "Patient's age in years",
+  "sex": "Gender - Male/Female/Other",
+  "date": "Visit date in DD-MMM-YYYY or format shown",
+  "chief_complaint": "Main reason for visit as a string",
+  "history_of_present_illness": "Detailed description of current symptoms and timeline",
+  "past_medical_history": "Previous medical conditions and chronic illnesses",
+  "medications": "Current medications with dosage information",
+  "physical_examination": {{
+    "vital_signs": {{
+      "temperature": "Body temperature in F or C",
+      "blood_pressure": "BP reading in mmHg format (systolic/diastolic)",
+      "heart_rate": "Pulse rate in beats per minute"
+    }},
+    "lungs": "Lung examination findings and observations"
+  }},
+  "assessment": "Doctor's diagnosis or clinical impression",
+  "plan": "Treatment plan, prescriptions, and follow-up instructions"
+}}
+
+WRONG OUTPUT (actual data - DO NOT DO THIS):
+{{
+  "patient_name": "John Doe",
+  "age": 45,
+  "temperature": 100.2,
+  "blood_pressure": "135/85"
+}}
+
+NOW ANALYZE THIS DOCUMENT:
+---
+{document_text}
+---
+
+Rules:
+- Extract actual field names from the document (use their exact wording)
+- Write DESCRIPTIONS for what type of data goes in each field (NOT the actual data)
+- Use words like "Name of...", "Age in...", "Date in format...", "Description of..."
+- For numbers: describe the unit and format, don't copy the number itself
+- Group related measurements (vitals, labs) as nested objects
+- Min 3 fields, max 50 fields
+- Return ONLY valid JSON starting with {{ and ending with }}
+- No extra text before or after
+- Remember: DESCRIPTIONS not DATA!
+
+Your JSON output:"""
     
     return prompt
