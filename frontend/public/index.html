@@ -3,10 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="AI-Powered Medical Note Generator">
     <title>Medical Note Generator</title>
+    <link rel="stylesheet" href="/public/styles.css">
 </head>
 <body>
-    <div id="root"></div>
-    <script src="../src/App.js"></script>
+    <!-- Sticky Top Navbar -->
+    <nav class="navbar">
+        <div class="nav-content">
+            <h1>🏥 Medical Note Generator</h1>
+            <p>AI-Powered Medical Documentation System</p>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="mode-toggle">
+                <button class="mode-btn active" onclick="setMode('generate')">Generate Note</button>
+                <button class="mode-btn" onclick="setMode('template')">Create Template</button>
+            </div>
+
+            <!-- Generate Note Mode -->
+            <div id="generate-mode" class="sidebar-content">
+                <div class="upload-section">
+                    <h3>Upload Audio</h3>
+                    <label for="audio-file" class="upload-label">
+                        <span class="upload-icon">📁</span>
+                        <span class="upload-text">Choose Audio File</span>
+                    </label>
+                    <input type="file" id="audio-file" accept="audio/*,.mp3,.wav,.m4a" style="display: none;">
+                    <div id="file-name" class="file-name"></div>
+                </div>
+
+                <button id="start-btn" class="btn-primary" onclick="startProcess()" disabled>Start Processing</button>
+
+                <div class="template-section">
+                    <h3>Select Template</h3>
+                    <div class="template-dropdown">
+                        <input type="text" id="template-search" placeholder="Type or select template..." list="template-list">
+                        <datalist id="template-list">
+                            <option value="General Medical Note">
+                            <option value="Cardiology Note">
+                        </datalist>
+                        <span class="dropdown-icon">▼</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Template Mode -->
+            <div id="template-mode" class="sidebar-content" style="display: none;">
+                <div class="upload-section">
+                    <h3>Template Name</h3>
+                    <input type="text" id="new-template-name" placeholder="e.g., Pediatric Note">
+                </div>
+
+                <div class="upload-section">
+                    <h3>Upload Document</h3>
+                    <label for="document-file" class="upload-label">
+                        <span class="upload-icon">📄</span>
+                        <span class="upload-text">Choose PDF/DOCX</span>
+                    </label>
+                    <input type="file" id="document-file" accept=".pdf,.docx" style="display: none;">
+                    <div id="doc-file-name" class="file-name"></div>
+                </div>
+
+                <button id="create-template-btn" class="btn-primary" onclick="createTemplate()" disabled>Create Template</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Progress Bar -->
+            <div class="progress-bar">
+                <div class="progress-step" id="step-upload">
+                    <span class="step-circle">1</span>
+                    <span class="step-label">Upload</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="progress-step" id="step-transcribe">
+                    <span class="step-circle">2</span>
+                    <span class="step-label">Transcribing</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="progress-step" id="step-generate">
+                    <span class="step-circle">3</span>
+                    <span class="step-label">Generating</span>
+                </div>
+                <div class="progress-line"></div>
+                <div class="progress-step" id="step-complete">
+                    <span class="step-circle">4</span>
+                    <span class="step-label">Complete</span>
+                </div>
+            </div>
+
+            <!-- Results Display -->
+            <div class="results-container">
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <h2>Ready to Generate Medical Notes</h2>
+                    <p>Upload an audio file and select a template to get started</p>
+                </div>
+
+                <div id="transcription-section" class="result-section" style="display: none;">
+                    <div class="section-header" onclick="toggleSection('transcription')">
+                        <h3>📝 Transcription</h3>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="transcription-content">
+                        <div class="text-box" id="transcription-text"></div>
+                    </div>
+                </div>
+
+                <div id="note-section" class="result-section" style="display: none;">
+                    <div class="section-header" onclick="toggleSection('note')">
+                        <h3>🏥 Medical Note</h3>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div class="section-content" id="note-content">
+                        <div id="medical-note"></div>
+                    </div>
+                </div>
+
+                <div id="template-result-section" class="result-section" style="display: none;">
+                    <div class="section-header">
+                        <h3>✅ Template Created</h3>
+                    </div>
+                    <div class="section-content" id="template-result-content">
+                        <div id="template-fields"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Popup -->
+    <div id="popup-overlay" class="popup-overlay" style="display: none;">
+        <div class="popup">
+            <h3 id="popup-title">Success</h3>
+            <p id="popup-message"></p>
+            <button class="btn-primary" onclick="closePopup()">OK</button>
+        </div>
+    </div>
+
+    <script src="/static/static.js"></script>
 </body>
 </html>

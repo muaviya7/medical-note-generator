@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any
 import logging
@@ -17,6 +19,19 @@ from backend.config import TEMPLATE_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE
 
 app = FastAPI(title="Medical Note Generator API", version="1.0.0")
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+app.mount("/public", StaticFiles(directory="frontend/public"), name="public")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -31,10 +46,18 @@ class TranscribeAndCleanResponse(BaseModel):
     error: str | None = None
 
 # ============================================================================
-# HEALTH CHECK
+# FRONTEND & HEALTH CHECK
 # ============================================================================
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """Serve the frontend HTML"""
+    index_path = Path("frontend/public/index.html")
+    if index_path.exists():
+        return index_path.read_text(encoding="utf-8")
+    return "<h1>Medical Note Generator</h1><p>Frontend not found</p>"
+
+@app.get("/health")
 def health_check():
     """API health check"""
     return {
@@ -149,7 +172,37 @@ async def generate_medical_note(request: GenerateNoteRequest):
         )
 
 # ============================================================================
-# API 3: CREATE TEMPLATE FROM DOCUMENT
+# API 3: LIST TEMPLATES
+# ============================================================================
+
+@app.get("/templates")
+async def list_all_templates():
+    """
+    Get list of all available templates
+    
+    Returns:
+        {
+            "success": bool,
+            "templates": [{"name": str, "field_count": int, "created_at": str}]
+        }
+    """
+    try:
+        from backend.database import list_templates
+        templates = list_templates()
+        return {
+            "success": True,
+            "templates": templates
+        }
+    except Exception as e:
+        logger.error(f"Error listing templates: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "templates": []
+        }
+
+# ============================================================================
+# API 4: CREATE TEMPLATE FROM DOCUMENT
 # ============================================================================
 
 @app.post("/create-template", response_model=CreateTemplateResponse, response_model_exclude_none=True)
@@ -197,7 +250,8 @@ async def create_template(document: UploadFile = File(...), template_name: str =
                 success=True,
                 template_name=result["template_name"],
                 fields=result["fields"],
-                time_elapsed=elapsed
+                time_elapsed=elapsed,
+                message=f"Template '{result['template_name']}' successfully added to database"
             )
         else:
             return CreateTemplateResponse(

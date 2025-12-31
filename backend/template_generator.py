@@ -20,6 +20,7 @@ class CreateTemplateResponse(BaseModel):
     template_name: str = ""
     fields: Dict[str, Any] = {}
     time_elapsed: float = 0.0
+    message: str | None = None
     error: str | None = None
 
 class TemplateInfo(BaseModel):
