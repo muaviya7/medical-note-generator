@@ -15,12 +15,5 @@ services:
         value: 0.0.0.0
       - key: PORT
         value: 8000
-      - key: DB_PATH
-        value: /data/templates.db
       - key: ALLOWED_ORIGINS
-        value: https://medical-note-generator.onrender.com
-    # Persistent disk for template storage
-    disk:
-      name: medical-note-data
-      mountPath: /data
-      sizeGB: 0.2
+        value: https://your-app-name.onrender.com

@@ -233,45 +233,57 @@ def template_extraction_prompt(document_text):
     """
     Prompt for extracting field structure from a medical document/form
     """
-    prompt = f"""You're analyzing a medical form to create a TEMPLATE (not extract data). Your job is to identify field names and write DESCRIPTIONS of what type of data belongs in each field.
+    prompt = f"""You are a medical documentation analyst. Your task is to analyze a medical document and create a JSON TEMPLATE structure (field names with descriptions - NOT actual data).
 
-CRITICAL RULES:
-- DO NOT copy actual data from the document (names, numbers, dates, etc.)
-- Write DESCRIPTIONS only: "Name of the patient" NOT "John Doe"
-- Write data type descriptions: "Age in years" NOT 45
-- Write format descriptions: "Temperature in F or C" NOT 100.2
+## YOUR ROLE:
+You are creating a reusable template from a medical form. This template will be used later to fill in patient data. You must identify field names and write descriptions of what TYPE of data belongs in each field.
 
-Your job:
-- Find all field labels (Patient Name, BP, etc.)
-- For each field, write a description of what DATA TYPE goes there
-- If a field has sub-fields (like vital signs), show them as nested objects
-- Keep medical terms as-is
+## CRITICAL RULES - READ CAREFULLY:
 
-Output format - JSON with field names as keys, DESCRIPTIONS as values (NOT actual data):
+1. **Extract FIELD NAMES from the document** - Use exact wording from the document (Patient Name, Blood Pressure, etc.)
+2. **Write DESCRIPTIONS not DATA** - Tell what TYPE of data goes there, don't copy actual values
+3. **Return ONLY valid JSON** - No text before or after, no markdown, no explanations
+4. **Minimum 3 fields, maximum 50 fields** - Extract all relevant medical fields
+5. **Use snake_case for keys** - Convert "Patient Name" to "patient_name"
+6. **Group related fields as nested objects** - Vital signs, lab results, medications should be grouped
 
-Simple field (string):
-"patient_name": "Name of the patient"
+## DESCRIPTION GUIDELINES:
 
-Complex field with sub-parts (object):
-"physical_examination": {{
-  "vital_signs": {{
-    "temperature": "Body temperature in F or C",
-    "blood_pressure": "BP reading in mmHg format (systolic/diastolic)",
-    "heart_rate": "Pulse rate in bpm",
-    "respiratory_rate": "Breathing rate per minute",
-    "oxygen_saturation": "O2 saturation percentage"
-  }},
-  "general_findings": "Overall physical exam observations"
+**For simple fields (strings):**
+- "patient_name": "Full name of the patient"
+- "date": "Visit date in DD-MMM-YYYY format"
+- "chief_complaint": "Main reason for visit"
+
+**For numeric fields:**
+- "age": "Patient's age in years"
+- "temperature": "Body temperature in F or C"
+- "heart_rate": "Pulse rate in bpm"
+
+**For complex fields (nested objects):**
+{{
+  "physical_examination": {{
+    "vital_signs": {{
+      "temperature": "Body temperature in F or C",
+      "blood_pressure": "BP reading in mmHg (systolic/diastolic)",
+      "heart_rate": "Pulse rate in bpm",
+      "respiratory_rate": "Breathing rate per minute",
+      "oxygen_saturation": "O2 saturation percentage"
+    }},
+    "general_findings": "Overall physical exam observations"
+  }}
 }}
 
-LABELING RULES:
-- Group related measurements together as nested objects
-- Vital signs (temp, BP, HR, RR, O2) should be under a vital_signs object
-- Lab results should be grouped under lab_results object
-- Each sub-field needs its own clear description
-- Use snake_case for all field names (patient_name, blood_pressure)
+## GROUPING RULES:
+- **Vital signs** → Group under "vital_signs" object
+- **Lab results** → Group under "lab_results" object  
+- **Medications** → Group under "medications" or list as array
+- **Physical exam** → Group related findings under "physical_examination"
+- **History sections** → Keep as top-level fields or group under "history"
 
-EXAMPLE INPUT:
+## EXAMPLE:
+
+**Input Document:**
+```
 Patient Name: John Doe
 Age: 45
 Sex: Male
@@ -302,17 +314,18 @@ Plan:
 - Increase fluid intake and rest
 - Paracetamol 500 mg as needed
 - Follow-up in 5 days
+```
 
-CORRECT OUTPUT (descriptions of data types):
+**CORRECT Output (descriptions):**
 {{
   "patient_name": "Full name of the patient",
   "age": "Patient's age in years",
   "sex": "Gender - Male/Female/Other",
-  "date": "Visit date in DD-MMM-YYYY or format shown",
-  "chief_complaint": "Main reason for visit as a string",
+  "date": "Visit date in DD-MMM-YYYY or shown format",
+  "chief_complaint": "Main reason for visit or primary symptom",
   "history_of_present_illness": "Detailed description of current symptoms and timeline",
   "past_medical_history": "Previous medical conditions and chronic illnesses",
-  "medications": "Current medications with dosage information",
+  "medications": "Current medications with dosage and frequency",
   "physical_examination": {{
     "vital_signs": {{
       "temperature": "Body temperature in F or C",
@@ -325,7 +338,7 @@ CORRECT OUTPUT (descriptions of data types):
   "plan": "Treatment plan, prescriptions, and follow-up instructions"
 }}
 
-WRONG OUTPUT (actual data - DO NOT DO THIS):
+**WRONG Output (actual data - DO NOT DO THIS):**
 {{
   "patient_name": "John Doe",
   "age": 45,
@@ -333,22 +346,24 @@ WRONG OUTPUT (actual data - DO NOT DO THIS):
   "blood_pressure": "135/85"
 }}
 
-NOW ANALYZE THIS DOCUMENT:
+## NOW YOUR TASK:
+
+Document to analyze:
 ---
 {document_text}
 ---
 
-Rules:
-- Extract actual field names from the document (use their exact wording)
-- Write DESCRIPTIONS for what type of data goes in each field (NOT the actual data)
-- Use words like "Name of...", "Age in...", "Date in format...", "Description of..."
-- For numbers: describe the unit and format, don't copy the number itself
-- Group related measurements (vitals, labs) as nested objects
-- Min 3 fields, max 50 fields
-- Return ONLY valid JSON starting with {{ and ending with }}
-- No extra text before or after
-- Remember: DESCRIPTIONS not DATA!
+Instructions:
+1. Identify all field names from the document
+2. For each field, write a DESCRIPTION of what type of data belongs there
+3. Use descriptive phrases like "Name of...", "Age in years", "Date in format...", "Description of...", "Measurement of..."
+4. For numeric fields, specify units (bpm, mmHg, °F, %, kg, etc.)
+5. Group related fields as nested objects (vital_signs, lab_results, physical_examination)
+6. Return ONLY valid JSON - start with {{ and end with }}
+7. No markdown code blocks, no explanations, no extra text
 
-Your JSON output:"""
+Critical reminder: Write DESCRIPTIONS not DATA. Tell what TYPE of information goes in each field, don't copy actual values from the document.
+
+Begin your JSON template now:"""
     
     return prompt
