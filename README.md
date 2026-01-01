@@ -162,6 +162,7 @@ medical-note-generator/
 │   ├── note_generator.py       # Generate notes
 │   ├── template_generator.py   # Extract templates
 │   ├── note_formatter.py       # Format output
+│   ├── docx_generator.py       # Word document generation
 │   ├── prompts.py              # AI prompts
 │   │
 │   └── LLM/
@@ -208,17 +209,6 @@ After deploy, update in Render:
 ```
 ALLOWED_ORIGINS=https://your-app.onrender.com
 ```
-
-### How Storage Works
-
-**Persistent Disk Setup:**
-```
-Deploy #1: Template saved → /data/templates.db ✓
-Deploy #2: Git push → /data untouched ✓
-Template still there!
-```
-
-Render mounts a 200MB disk at `/data` that survives redeployments. Your templates never get deleted unless you manually remove the service.
 
 ## Development Mode
 
