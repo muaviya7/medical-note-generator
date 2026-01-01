@@ -9,11 +9,7 @@ import os
 import json
 import time
 import shutil
-import io
 from pathlib import Path
-from docx import Document
-from docx.shared import Pt, RGBColor, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # Import modules and their models
 from backend.text_cleaner import clean_text, CleanTextRequest, CleanTextResponse
@@ -22,6 +18,7 @@ from backend.template_generator import create_template_from_document, CreateTemp
 from backend.transcription import transcribe_audio
 from backend.note_formatter import format_medical_note, format_template_document
 from backend.config import TEMPLATE_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE
+from backend.docx_generator import generate_note_docx, generate_template_docx, get_note_filename, get_template_filename
 
 app = FastAPI(title="Medical Note Generator API", version="1.0.0")
 
@@ -42,9 +39,7 @@ app.mount("/public", StaticFiles(directory="frontend/public"), name="public")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============================================================================
 # RESPONSE MODELS FOR COMBINED ENDPOINTS
-# ============================================================================
 
 class TranscribeAndCleanResponse(BaseModel):
     success: bool
@@ -60,9 +55,7 @@ class DownloadNoteRequest(BaseModel):
     template_name: str
     note_data: Dict[str, Any]
 
-# ============================================================================
 # FRONTEND & HEALTH CHECK
-# ============================================================================
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
@@ -81,9 +74,7 @@ def health_check():
         "version": "1.0.0"
     }
 
-# ============================================================================
 # API 1: TRANSCRIBE + CLEAN TEXT (Combined)
-# ============================================================================
 
 @app.post("/transcribe-and-clean", response_model=TranscribeAndCleanResponse, response_model_exclude_none=True)
 async def transcribe_and_clean_audio(audio: UploadFile = File(...)):
@@ -161,9 +152,7 @@ async def transcribe_and_clean_audio(audio: UploadFile = File(...)):
             total_time=0.0
         )
 
-# ============================================================================
 # API 2: GENERATE MEDICAL NOTE
-# ============================================================================
 
 @app.post("/generate-note", response_model=GenerateNoteResponse, response_model_exclude_none=True)
 async def generate_medical_note(request: GenerateNoteRequest):
@@ -213,9 +202,7 @@ async def generate_medical_note(request: GenerateNoteRequest):
             error=str(e)
         )
 
-# ============================================================================
 # API 3: LIST TEMPLATES
-# ============================================================================
 
 @app.get("/templates")
 async def list_all_templates():
@@ -243,9 +230,7 @@ async def list_all_templates():
             "templates": []
         }
 
-# ============================================================================
 # API 4: CREATE TEMPLATE FROM DOCUMENT
-# ============================================================================
 
 @app.post("/create-template", response_model=CreateTemplateResponse, response_model_exclude_none=True)
 async def create_template(document: UploadFile = File(...), template_name: str = Form(...)):
@@ -318,9 +303,7 @@ async def create_template(document: UploadFile = File(...), template_name: str =
             except:
                 pass
 
-# ============================================================================
 # API 5: DOWNLOAD TEMPLATE AS WORD
-# ============================================================================
 
 @app.post("/download-template")
 async def download_template(request: DownloadTemplateRequest):
@@ -334,52 +317,9 @@ async def download_template(request: DownloadTemplateRequest):
         Word document file
     """
     try:
-        # Create Word document
-        doc = Document()
+        doc_io = generate_template_docx(request.template_name, request.fields)
+        filename = get_template_filename(request.template_name)
         
-        # Add title
-        title = doc.add_heading(request.template_name, 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Add subtitle
-        subtitle = doc.add_paragraph('Medical Template Structure')
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        subtitle_run = subtitle.runs[0]
-        subtitle_run.font.size = Pt(14)
-        subtitle_run.font.color.rgb = RGBColor(108, 117, 125)
-        subtitle_run.italic = True
-        
-        # Add horizontal line
-        doc.add_paragraph('_' * 80)
-        
-        # Add fields
-        for key, value in request.fields.items():
-            # Field title
-            field_heading = doc.add_heading(key.replace('_', ' ').title(), level=2)
-            field_heading.runs[0].font.color.rgb = RGBColor(102, 126, 234)
-            
-            # Field description
-            desc = doc.add_paragraph(value.get('description', 'No description provided'))
-            desc_run = desc.runs[0]
-            desc_run.font.size = Pt(11)
-            
-            # Field type
-            type_para = doc.add_paragraph(f"Type: {value.get('type', 'text')}")
-            type_run = type_para.runs[0]
-            type_run.font.size = Pt(9)
-            type_run.font.color.rgb = RGBColor(102, 126, 234)
-            type_run.bold = True
-            
-            # Add spacing
-            doc.add_paragraph()
-        
-        # Save to bytes
-        doc_io = io.BytesIO()
-        doc.save(doc_io)
-        doc_io.seek(0)
-        
-        # Return as downloadable file
-        filename = f"{request.template_name.replace(' ', '_')}.docx"
         return StreamingResponse(
             doc_io,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -405,59 +345,9 @@ async def download_note(request: DownloadNoteRequest):
         Word document file
     """
     try:
-        # Create Word document
-        doc = Document()
+        doc_io = generate_note_docx(request.template_name, request.note_data)
+        filename = get_note_filename()
         
-        # Add title
-        title = doc.add_heading('Medical Note', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        
-        # Add template name
-        if request.template_name:
-            template_para = doc.add_paragraph(f'Template: {request.template_name}')
-            template_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            template_run = template_para.runs[0]
-            template_run.font.size = Pt(12)
-            template_run.font.color.rgb = RGBColor(108, 117, 125)
-            template_run.italic = True
-        
-        # Add horizontal line
-        doc.add_paragraph('_' * 80)
-        
-        # Add note fields
-        for key, value in request.note_data.items():
-            # Skip internal fields
-            if key.startswith('_'):
-                continue
-            
-            # Format field name
-            field_name = key.replace('_', ' ').title()
-            
-            # Field heading
-            field_heading = doc.add_heading(field_name, level=2)
-            field_heading.runs[0].font.color.rgb = RGBColor(102, 126, 234)
-            
-            # Field content
-            if isinstance(value, dict):
-                # Handle nested objects
-                for sub_key, sub_value in value.items():
-                    sub_field_name = sub_key.replace('_', ' ').title()
-                    content = doc.add_paragraph(f"{sub_field_name}: {sub_value}")
-                    content.runs[0].font.size = Pt(11)
-            else:
-                content = doc.add_paragraph(str(value))
-                content.runs[0].font.size = Pt(11)
-            
-            # Add spacing
-            doc.add_paragraph()
-        
-        # Save to bytes
-        doc_io = io.BytesIO()
-        doc.save(doc_io)
-        doc_io.seek(0)
-        
-        # Return as downloadable file
-        filename = f"Medical_Note_{int(time.time())}.docx"
         return StreamingResponse(
             doc_io,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -471,9 +361,7 @@ async def download_note(request: DownloadNoteRequest):
             content={"error": str(e)}
         )
 
-# ============================================================================
-# RUN SERVER
-# ============================================================================
+
 
 if __name__ == "__main__":
     import uvicorn
