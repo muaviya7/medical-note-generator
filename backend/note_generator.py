@@ -1,17 +1,11 @@
 # This module generates structured medical notes from text
-from llama_cpp import Llama
 import logging
 import os
-import sys
 import json
 import time
 from pydantic import BaseModel
 from typing import Dict, Any
-from .prompts import note_generator_prompt
-from .config import (
-    MODEL_PATH, CPU_THREADS, CONTEXT_SIZE, GPU_LAYERS,
-    MAX_TOKENS_NOTE_GEN, TEMPERATURE, TOP_P, REPEAT_PENALTY
-)
+from .LLM.gemini import Gemini
 from .database import get_template
 
 # Pydantic Models
@@ -23,6 +17,7 @@ class GenerateNoteResponse(BaseModel):
     success: bool
     medical_note: Dict[str, Any] = {}
     time_elapsed: float = 0.0
+    formatted_html: str = ""
     error: str | None = None
 
 # Configure logging
@@ -41,20 +36,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Initialize Gemini
 try:
-    # Initialize Mistral model
-    model = Llama(
-        model_path=MODEL_PATH,
-        n_ctx=CONTEXT_SIZE,
-        n_threads=CPU_THREADS,
-        n_gpu_layers=GPU_LAYERS,
-        verbose=False
-    )
-    
+    gemini = Gemini()
+    logger.info("Gemini initialized for note generation")
 except Exception as e:
-    logger.error(f"Failed to load Mistral model: {str(e)}", exc_info=True)
-    model = None
-    sys.exit(1)
+    logger.error(f"Failed to initialize Gemini: {str(e)}")
+    gemini = None
 
 
 def load_template(template_name):
@@ -93,9 +81,9 @@ def generate_note_from_text(cleaned_text, template_json):
     Returns:
         dict: Generated medical note following template structure
     """
-    if model is None:
-        logger.error("Model not loaded, cannot generate note")
-        return {"error": "Model not available"}
+    if gemini is None:
+        logger.error("Gemini not initialized")
+        return {"error": "Gemini not available"}
     
     # Load template if it's a filename
     if isinstance(template_json, str):
@@ -104,27 +92,12 @@ def generate_note_from_text(cleaned_text, template_json):
             return {"error": "Failed to load template"}
     
     try:
-        # Get the prompt
-        prompt = note_generator_prompt(cleaned_text, template_json)
-        
         logger.info("Generating medical note...")
-        logger.info(f"Prompt length: {len(prompt)} characters")
-        
         start_time = time.time()
         
-        # Generate response
-        response = model(
-            prompt,
-            max_tokens=MAX_TOKENS_NOTE_GEN,
-            temperature=TEMPERATURE,
-            top_p=TOP_P,
-            repeat_penalty=REPEAT_PENALTY,
-            echo=False
-        )
-        
+        generated_text = gemini.gemini_generate_note(cleaned_text, template_json)
         elapsed = time.time() - start_time
         
-        generated_text = response['choices'][0]['text'].strip()
         logger.info(f"Generated text length: {len(generated_text)} characters")
         logger.info(f"Generation took {elapsed:.2f} seconds")
         

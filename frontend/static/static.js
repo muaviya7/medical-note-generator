@@ -5,6 +5,10 @@ let audioFile = null;
 let transcriptionText = '';
 let currentStep = 'upload';
 let availableTemplates = [];
+let currentTemplateName = '';
+let currentTemplateFields = {};
+let currentNoteData = {};
+let currentNoteTemplateName = '';
 
 // Load templates on page load
 async function loadTemplates() {
@@ -23,15 +27,83 @@ async function loadTemplates() {
 
 // Update template dropdown with fetched templates
 function updateTemplateDropdown() {
-    const datalist = document.getElementById('template-list');
-    datalist.innerHTML = '';
+    const dropdownItems = document.getElementById('dropdown-items');
+    dropdownItems.innerHTML = '';
+    
+    if (availableTemplates.length === 0) {
+        dropdownItems.innerHTML = '<div style="padding: 1rem; text-align: center; color: #9ca3af;">No templates available</div>';
+        return;
+    }
     
     availableTemplates.forEach(template => {
-        const option = document.createElement('option');
-        option.value = template.name;
-        datalist.appendChild(option);
+        const item = document.createElement('div');
+        item.className = 'dropdown-item';
+        item.textContent = template.name;
+        item.onclick = () => selectTemplate(template.name);
+        dropdownItems.appendChild(item);
     });
 }
+
+// Toggle dropdown visibility
+function toggleDropdown() {
+    const dropdown = document.getElementById('custom-dropdown');
+    const menu = document.getElementById('dropdown-menu');
+    
+    if (menu.style.display === 'none') {
+        menu.style.display = 'block';
+        dropdown.classList.add('active');
+    } else {
+        menu.style.display = 'none';
+        dropdown.classList.remove('active');
+    }
+}
+
+// Select template from dropdown
+function selectTemplate(templateName) {
+    document.getElementById('template-search').value = templateName;
+    document.getElementById('dropdown-menu').style.display = 'none';
+    document.getElementById('custom-dropdown').classList.remove('active');
+}
+
+// Filter templates based on search
+function filterTemplates() {
+    const menu = document.getElementById('dropdown-menu');
+    const searchTerm = document.getElementById('template-search').value.toLowerCase();
+    const items = document.querySelectorAll('.dropdown-item');
+    
+    // Show dropdown when typing
+    if (searchTerm && menu.style.display === 'none') {
+        menu.style.display = 'block';
+        document.getElementById('custom-dropdown').classList.add('active');
+    }
+    
+    // Filter items
+    let hasVisible = false;
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            item.style.display = 'flex';
+            hasVisible = true;
+        } else {
+            item.style.display = 'none';
+        }
+    });
+    
+    // Hide if no results and no search term
+    if (!hasVisible && !searchTerm) {
+        menu.style.display = 'none';
+        document.getElementById('custom-dropdown').classList.remove('active');
+    }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('custom-dropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+        document.getElementById('dropdown-menu').style.display = 'none';
+        dropdown.classList.remove('active');
+    }
+});
 
 // Mode switching
 function setMode(mode) {
@@ -41,10 +113,18 @@ function setMode(mode) {
     if (mode === 'generate') {
         document.getElementById('generate-mode').style.display = 'block';
         document.getElementById('template-mode').style.display = 'none';
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('template-empty-state').style.display = 'none';
+        document.getElementById('template-result-section').style.display = 'none';
+        document.querySelector('.progress-bar').style.display = 'flex';
         resetProgress();
     } else {
         document.getElementById('generate-mode').style.display = 'none';
         document.getElementById('template-mode').style.display = 'block';
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('template-empty-state').style.display = 'block';
+        document.getElementById('template-result-section').style.display = 'none';
+        document.querySelector('.progress-bar').style.display = 'none';
         hideAllResults();
     }
 }
@@ -205,30 +285,13 @@ async function generateNote(templateName) {
     const data = await response.json();
 
     if (data.success) {
-        // Display medical note
+        // Store note data for download
+        currentNoteData = data.medical_note;
+        currentNoteTemplateName = templateName;
+        
+        // Display formatted HTML from backend
         const noteOutput = document.getElementById('medical-note');
-        noteOutput.innerHTML = '';
-
-        Object.entries(data.medical_note).forEach(([key, value]) => {
-            const field = document.createElement('div');
-            field.className = 'note-field';
-            
-            const label = document.createElement('strong');
-            label.textContent = key.replace(/_/g, ' ');
-            
-            const content = document.createElement('span');
-            if (typeof value === 'object' && value !== null) {
-                content.textContent = JSON.stringify(value, null, 2);
-                content.style.whiteSpace = 'pre-wrap';
-            } else {
-                content.textContent = value || 'N/A';
-            }
-            
-            field.appendChild(label);
-            field.appendChild(content);
-            noteOutput.appendChild(field);
-        });
-
+        noteOutput.innerHTML = data.formatted_html || '<p>No formatted output available</p>';
         document.getElementById('note-section').style.display = 'block';
         
         return data;
@@ -267,23 +330,17 @@ async function createTemplate() {
         if (data.success) {
             hideAllResults();
             
+            // Hide empty states
+            document.getElementById('template-empty-state').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'none';
+            
+            // Store template data for download
+            currentTemplateName = templateName;
+            currentTemplateFields = data.fields;
+            
+            // Display formatted HTML from backend
             const templateOutput = document.getElementById('template-fields');
-            templateOutput.innerHTML = '';
-
-            Object.entries(data.fields).forEach(([key, value]) => {
-                const field = document.createElement('div');
-                field.className = 'note-field';
-                
-                const label = document.createElement('strong');
-                label.textContent = key;
-                
-                const content = document.createElement('span');
-                content.textContent = value.description || 'No description';
-                
-                field.appendChild(label);
-                field.appendChild(content);
-                templateOutput.appendChild(field);
-            });
+            templateOutput.innerHTML = data.formatted_html || '<p>No formatted output available</p>';
 
             document.getElementById('template-result-section').style.display = 'block';
             
@@ -307,6 +364,77 @@ async function createTemplate() {
     } finally {
         btn.disabled = false;
         btn.textContent = 'Create Template';
+    }
+}
+
+// Download template as Word document
+async function downloadTemplate() {
+    if (!currentTemplateName) {
+        showPopup('Error', 'No template to download');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/download-template`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_name: currentTemplateName,
+                fields: currentTemplateFields
+            })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentTemplateName.replace(/\s+/g, '_')}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showPopup('Success', 'Template downloaded successfully!');
+        } else {
+            throw new Error('Download failed');
+        }
+    } catch (error) {
+        showPopup('Error', error.message);
+    }
+}
+
+async function downloadNote() {
+    if (!currentNoteData || Object.keys(currentNoteData).length === 0) {
+        showPopup('Error', 'No medical note to download');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/download-note`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_name: currentNoteTemplateName || 'Medical Note',
+                note_data: currentNoteData
+            })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Medical_Note_${Date.now()}.docx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showPopup('Success', 'Medical note downloaded successfully!');
+        } else {
+            throw new Error('Download failed');
+        }
+    } catch (error) {
+        showPopup('Error', error.message);
     }
 }
 

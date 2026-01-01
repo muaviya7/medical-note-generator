@@ -5,13 +5,8 @@ import logging
 import re
 from pydantic import BaseModel
 from typing import Dict, Any, List
-from llama_cpp import Llama
-from .prompts import template_extraction_prompt
-from .config import (
-    MODEL_PATH, CPU_THREADS, CONTEXT_SIZE, GPU_LAYERS,
-    MAX_TOKENS_NOTE_GEN, TEMPERATURE, TOP_P, REPEAT_PENALTY,
-    MIN_TEMPLATE_FIELDS, MAX_TEMPLATE_FIELDS, TEMPLATE_DIR
-)
+from .LLM.gemini import Gemini
+from .config import MIN_TEMPLATE_FIELDS, MAX_TEMPLATE_FIELDS, TEMPLATE_DIR
 from .database import save_template as db_save_template
 
 # Pydantic Models
@@ -20,6 +15,7 @@ class CreateTemplateResponse(BaseModel):
     template_name: str = ""
     fields: Dict[str, Any] = {}
     time_elapsed: float = 0.0
+    formatted_html: str = ""
     message: str | None = None
     error: str | None = None
 
@@ -45,19 +41,13 @@ class DeleteTemplateResponse(BaseModel):
 
 logger = logging.getLogger(__name__)
 
-# Load model (reuse same instance)
+# Initialize Gemini
 try:
-    model = Llama(
-        model_path=MODEL_PATH,
-        n_ctx=CONTEXT_SIZE,
-        n_threads=CPU_THREADS,
-        n_gpu_layers=GPU_LAYERS,
-        verbose=False
-    )
-    logger.info("Model loaded for template generation")
+    gemini = Gemini()
+    logger.info("Gemini initialized for template generation")
 except Exception as e:
-    logger.error(f"Failed to load model: {str(e)}")
-    model = None
+    logger.error(f"Failed to initialize Gemini: {str(e)}")
+    gemini = None
 
 
 def validate_template_name(name):
@@ -120,24 +110,13 @@ def generate_template_fields(document_text):
     }
     
     try:
-        if not model:
-            raise RuntimeError("Model not loaded")
+        if gemini is None:
+            raise RuntimeError("Gemini not initialized")
         
         if not document_text or len(document_text) < 50:
             raise ValueError("Document text too short to analyze")
         
-        prompt = template_extraction_prompt(document_text)
-        
-        response = model(
-            prompt,
-            max_tokens=1024,
-            temperature=TEMPERATURE,
-            top_p=TOP_P,
-            repeat_penalty=REPEAT_PENALTY,
-            echo=False
-        )
-        
-        generated_text = response['choices'][0]['text'].strip()
+        generated_text = gemini.gemini_create_template(document_text)
         
         # Extract JSON object - find first complete JSON by counting braces
         start_idx = generated_text.find('{')
@@ -186,7 +165,6 @@ def generate_template_fields(document_text):
     except json.JSONDecodeError as e:
         error_msg = f"Failed to parse AI response: {str(e)}"
         logger.error(error_msg)
-        logger.debug(f"JSON text: {json_text if 'json_text' in locals() else 'N/A'}")
         result["error"] = error_msg
     except Exception as e:
         error_msg = str(e)

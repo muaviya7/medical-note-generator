@@ -14,7 +14,7 @@ body {
 .navbar {
     position: sticky;
     top: 0;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
     color: white;
     padding: 1rem 2rem;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -66,7 +66,7 @@ body {
 }
 
 .mode-btn.active {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: white;
     border-color: transparent;
 }
@@ -105,7 +105,7 @@ h3 {
 
 .upload-label:hover {
     background: #e9ecef;
-    border-color: #667eea;
+    border-color: #3b82f6;
 }
 
 .upload-icon {
@@ -120,7 +120,7 @@ h3 {
 .file-name {
     margin-top: 0.5rem;
     font-size: 0.85rem;
-    color: #667eea;
+    color: #3b82f6;
     font-weight: 500;
 }
 
@@ -134,35 +134,143 @@ h3 {
 
 .template-dropdown input[type="text"] {
     width: 100%;
-    padding: 0.875rem 2.5rem 0.875rem 0.875rem;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
+    padding: 0.875rem 3rem 0.875rem 2.75rem;
+    border: 2px solid #e0e7ff;
+    border-radius: 12px;
     font-size: 0.95rem;
     font-family: inherit;
-    background: white;
-    transition: all 0.3s;
+    background: linear-gradient(to right, #fafbff, #ffffff);
+    transition: all 0.3s ease;
     cursor: pointer;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.05);
+}
+
+.template-dropdown input[type="text"]::placeholder {
+    color: #9ca3af;
+    font-style: italic;
 }
 
 .template-dropdown input[type="text"]:hover {
-    border-color: #adb5bd;
+    border-color: #c7d2fe;
+    background: #ffffff;
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.1);
+    transform: translateY(-1px);
 }
 
-.template-dropdown input[type="text"]:focus {
+.template-dropdown input[type="text"]:focus,
+.template-dropdown.active input[type="text"] {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    cursor: text;
+    border-color: #3b82f6;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(59, 130, 246, 0.15);
+    cursor: pointer;
+    transform: translateY(-1px);
+}
+
+.template-dropdown::before {
+    content: "📋";
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1rem;
+    pointer-events: none;
+    z-index: 1;
 }
 
 .dropdown-icon {
     position: absolute;
-    right: 0.875rem;
+    right: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: #6c757d;
+    color: #3b82f6;
     pointer-events: none;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: bold;
+    transition: transform 0.3s ease;
+}
+
+.template-dropdown.active .dropdown-icon {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+/* Custom Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 2px solid #e0e7ff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+    max-height: 280px;
+    overflow: hidden;
+    z-index: 1000;
+    animation: dropdownSlide 0.2s ease;
+}
+
+@keyframes dropdownSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dropdown-items {
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.dropdown-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.dropdown-item::before {
+    content: "📋";
+    font-size: 1rem;
+}
+
+.dropdown-item:hover {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+    transform: translateX(4px);
+}
+
+.dropdown-item.selected {
+    background: #dbeafe;
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.dropdown-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.dropdown-items::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 10px;
+}
+
+.dropdown-items::-webkit-scrollbar-thumb:hover {
+    background: #2563eb;
 }
 
 input[type="text"] {
@@ -177,13 +285,13 @@ input[type="text"] {
 
 input[type="text"]:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #3b82f6;
 }
 
 .btn-primary {
     width: 100%;
     padding: 0.875rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: white;
     border: none;
     border-radius: 8px;
@@ -197,7 +305,7 @@ input[type="text"]:focus {
 
 .btn-primary:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
 }
 
 .btn-primary:disabled {
@@ -247,12 +355,12 @@ input[type="text"]:focus {
 }
 
 .progress-step.active .step-circle {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: white;
 }
 
 .progress-step.completed .step-circle {
-    background: #28a745;
+    background: #10b981;
     color: white;
 }
 
@@ -263,7 +371,7 @@ input[type="text"]:focus {
 }
 
 .progress-step.active .step-label {
-    color: #667eea;
+    color: #2563eb;
     font-weight: 600;
 }
 
@@ -312,27 +420,61 @@ input[type="text"]:focus {
 
 .section-header {
     padding: 1.25rem 1.5rem;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
     color: white;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
     transition: all 0.3s;
 }
 
 .section-header:hover {
-    background: linear-gradient(135deg, #5568d3, #653a8b);
+    background: linear-gradient(135deg, #1e40af, #2563eb);
 }
 
 .section-header h3 {
     color: white;
     margin: 0;
     font-size: 1.1rem;
+    flex: 1;
+}
+
+.download-btn {
+    padding: 0.6rem 1.2rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.download-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.download-btn:active {
+    transform: translateY(0);
+}
+
+.download-btn span {
+    font-size: 1.1rem;
 }
 
 .toggle-icon {
     transition: transform 0.3s;
+    font-size: 1rem;
 }
 
 .section-header.collapsed .toggle-icon {
@@ -365,12 +507,12 @@ input[type="text"]:focus {
     padding: 1rem;
     background: #f8f9fa;
     border-radius: 8px;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #3b82f6;
 }
 
 .note-field strong {
     display: block;
-    color: #667eea;
+    color: #2563eb;
     margin-bottom: 0.5rem;
     text-transform: capitalize;
     font-size: 0.95rem;

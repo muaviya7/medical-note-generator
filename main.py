@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,12 +9,18 @@ import os
 import json
 import time
 import shutil
+import io
 from pathlib import Path
+from docx import Document
+from docx.shared import Pt, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 # Import modules and their models
 from backend.text_cleaner import clean_text, CleanTextRequest, CleanTextResponse
 from backend.note_generator import generate_note_from_text, load_template, GenerateNoteRequest, GenerateNoteResponse
 from backend.template_generator import create_template_from_document, CreateTemplateResponse
+from backend.transcription import transcribe_audio
+from backend.note_formatter import format_medical_note, format_template_document
 from backend.config import TEMPLATE_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE
 
 app = FastAPI(title="Medical Note Generator API", version="1.0.0")
@@ -44,6 +50,14 @@ class TranscribeAndCleanResponse(BaseModel):
     transcription: str = ""
     total_time: float = 0.0
     error: str | None = None
+
+class DownloadTemplateRequest(BaseModel):
+    template_name: str
+    fields: Dict[str, Any]
+
+class DownloadNoteRequest(BaseModel):
+    template_name: str
+    note_data: Dict[str, Any]
 
 # ============================================================================
 # FRONTEND & HEALTH CHECK
@@ -89,11 +103,34 @@ async def transcribe_and_clean_audio(audio: UploadFile = File(...)):
     try:
         total_start = time.time()
         
-        # TODO: Step 1 - Transcribe audio
-        # For now, returning placeholder
-        transcription_start = time.time()
-        transcription = "Placeholder transcription - implement Whisper/transcription here"
-        transcription_time = time.time() - transcription_start
+        # Save uploaded audio file temporarily
+        temp_audio = f"temp_audio_{int(time.time())}{Path(audio.filename).suffix}"
+        try:
+            with open(temp_audio, "wb") as f:
+                shutil.copyfileobj(audio.file, f)
+            
+            # Step 1 - Transcribe audio using Whisper
+            transcription_start = time.time()
+            transcription_result = transcribe_audio(temp_audio)
+            transcription_time = time.time() - transcription_start
+            
+            if not transcription_result['success']:
+                return TranscribeAndCleanResponse(
+                    success=False,
+                    error=f"Transcription failed: {transcription_result.get('error', 'Unknown error')}",
+                    total_time=time.time() - total_start
+                )
+            
+            transcription = transcription_result['text']
+            logger.info(f"Transcription completed: {len(transcription)} chars in {transcription_time:.2f}s")
+            
+        finally:
+            # Cleanup temp audio file
+            if os.path.exists(temp_audio):
+                try:
+                    os.remove(temp_audio)
+                except:
+                    pass
         
         # Step 2 - Clean text
         cleaning_start = time.time()
@@ -159,10 +196,14 @@ async def generate_medical_note(request: GenerateNoteRequest):
                 error=result["error"]
             )
         
+        # Format the note as HTML
+        formatted_html = format_medical_note(result, request.template_name)
+        
         return GenerateNoteResponse(
             success=True,
             medical_note=result,
-            time_elapsed=elapsed
+            time_elapsed=elapsed,
+            formatted_html=formatted_html
         )
     except Exception as e:
         logger.error(f"Note generation error: {e}")
@@ -246,11 +287,15 @@ async def create_template(document: UploadFile = File(...), template_name: str =
         elapsed = time.time() - start
         
         if result["success"]:
+            # Format template as HTML
+            formatted_html = format_template_document(result["fields"], result["template_name"])
+            
             return CreateTemplateResponse(
                 success=True,
                 template_name=result["template_name"],
                 fields=result["fields"],
                 time_elapsed=elapsed,
+                formatted_html=formatted_html,
                 message=f"Template '{result['template_name']}' successfully added to database"
             )
         else:
@@ -273,31 +318,196 @@ async def create_template(document: UploadFile = File(...), template_name: str =
                 pass
 
 # ============================================================================
+# API 5: DOWNLOAD TEMPLATE AS WORD
+# ============================================================================
+
+@app.post("/download-template")
+async def download_template(request: DownloadTemplateRequest):
+    """
+    Download template as Word document
+    
+    Args:
+        request: Template name and fields
+    
+    Returns:
+        Word document file
+    """
+    try:
+        # Create Word document
+        doc = Document()
+        
+        # Add title
+        title = doc.add_heading(request.template_name, 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Add subtitle
+        subtitle = doc.add_paragraph('Medical Template Structure')
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        subtitle_run = subtitle.runs[0]
+        subtitle_run.font.size = Pt(14)
+        subtitle_run.font.color.rgb = RGBColor(108, 117, 125)
+        subtitle_run.italic = True
+        
+        # Add horizontal line
+        doc.add_paragraph('_' * 80)
+        
+        # Add fields
+        for key, value in request.fields.items():
+            # Field title
+            field_heading = doc.add_heading(key.replace('_', ' ').title(), level=2)
+            field_heading.runs[0].font.color.rgb = RGBColor(102, 126, 234)
+            
+            # Field description
+            desc = doc.add_paragraph(value.get('description', 'No description provided'))
+            desc_run = desc.runs[0]
+            desc_run.font.size = Pt(11)
+            
+            # Field type
+            type_para = doc.add_paragraph(f"Type: {value.get('type', 'text')}")
+            type_run = type_para.runs[0]
+            type_run.font.size = Pt(9)
+            type_run.font.color.rgb = RGBColor(102, 126, 234)
+            type_run.bold = True
+            
+            # Add spacing
+            doc.add_paragraph()
+        
+        # Save to bytes
+        doc_io = io.BytesIO()
+        doc.save(doc_io)
+        doc_io.seek(0)
+        
+        # Return as downloadable file
+        filename = f"{request.template_name.replace(' ', '_')}.docx"
+        return StreamingResponse(
+            doc_io,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Template download error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/download-note")
+async def download_note(request: DownloadNoteRequest):
+    """
+    Download medical note as Word document
+    
+    Args:
+        request: Template name and note data
+    
+    Returns:
+        Word document file
+    """
+    try:
+        # Create Word document
+        doc = Document()
+        
+        # Add title
+        title = doc.add_heading('Medical Note', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Add template name
+        if request.template_name:
+            template_para = doc.add_paragraph(f'Template: {request.template_name}')
+            template_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            template_run = template_para.runs[0]
+            template_run.font.size = Pt(12)
+            template_run.font.color.rgb = RGBColor(108, 117, 125)
+            template_run.italic = True
+        
+        # Add horizontal line
+        doc.add_paragraph('_' * 80)
+        
+        # Add note fields
+        for key, value in request.note_data.items():
+            # Skip internal fields
+            if key.startswith('_'):
+                continue
+            
+            # Format field name
+            field_name = key.replace('_', ' ').title()
+            
+            # Field heading
+            field_heading = doc.add_heading(field_name, level=2)
+            field_heading.runs[0].font.color.rgb = RGBColor(102, 126, 234)
+            
+            # Field content
+            if isinstance(value, dict):
+                # Handle nested objects
+                for sub_key, sub_value in value.items():
+                    sub_field_name = sub_key.replace('_', ' ').title()
+                    content = doc.add_paragraph(f"{sub_field_name}: {sub_value}")
+                    content.runs[0].font.size = Pt(11)
+            else:
+                content = doc.add_paragraph(str(value))
+                content.runs[0].font.size = Pt(11)
+            
+            # Add spacing
+            doc.add_paragraph()
+        
+        # Save to bytes
+        doc_io = io.BytesIO()
+        doc.save(doc_io)
+        doc_io.seek(0)
+        
+        # Return as downloadable file
+        filename = f"Medical_Note_{int(time.time())}.docx"
+        return StreamingResponse(
+            doc_io,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Note download error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+# ============================================================================
 # RUN SERVER
 # ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
-    from backend.config import HOST, PORT, RELOAD
+    from backend.config import HOST, PORT, RELOAD, APP_ENV
+    
+    # Production-ready configuration
+    uvicorn_config = {
+        "host": HOST,
+        "port": PORT,
+        "reload": RELOAD,
+    }
+    
+    # Only include reload settings in development
+    if APP_ENV == "development" and RELOAD:
+        uvicorn_config.update({
+            "reload_dirs": ["./backend", "./"],
+            "reload_excludes": [
+                "*.pyc",
+                "__pycache__",
+                "*.log",
+                "*.tmp",
+                "temp_*",
+                "*.db",
+                "*.sqlite",
+                ".git",
+                "venv",
+                ".venv",
+                "models/*",
+                "*.gguf"
+            ]
+        })
+    
+    logger.info(f"Starting server in {APP_ENV} mode on {HOST}:{PORT}")
     
     uvicorn.run(
         "main:app",
-        host=HOST,
-        port=PORT,
-        reload=RELOAD,
-        reload_dirs=["./backend", "./"],
-        reload_excludes=[
-            "*.pyc",
-            "__pycache__",
-            "*.log",
-            "*.tmp",
-            "temp_*",
-            "*.db",
-            "*.sqlite",
-            ".git",
-            "venv",
-            ".venv",
-            "models/*",
-            "*.gguf"
-        ]
+        **uvicorn_config
     )

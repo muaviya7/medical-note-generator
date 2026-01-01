@@ -41,13 +41,14 @@
 
                 <div class="template-section">
                     <h3>Select Template</h3>
-                    <div class="template-dropdown">
-                        <input type="text" id="template-search" placeholder="Type or select template..." list="template-list">
-                        <datalist id="template-list">
-                            <option value="General Medical Note">
-                            <option value="Cardiology Note">
-                        </datalist>
-                        <span class="dropdown-icon">▼</span>
+                    <div class="template-dropdown" id="custom-dropdown">
+                        <input type="text" id="template-search" placeholder="Type or select template..." autocomplete="off" onclick="toggleDropdown()" onkeyup="filterTemplates()">
+                        <span class="dropdown-icon" onclick="toggleDropdown()">▼</span>
+                        <div class="dropdown-menu" id="dropdown-menu" style="display: none;">
+                            <div class="dropdown-items" id="dropdown-items">
+                                <!-- Templates will be loaded here dynamically -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -100,10 +101,18 @@
 
             <!-- Results Display -->
             <div class="results-container">
+                <!-- Generate Note Mode Empty State -->
                 <div id="empty-state" class="empty-state">
                     <div class="empty-icon">📋</div>
                     <h2>Ready to Generate Medical Notes</h2>
                     <p>Upload an audio file and select a template to get started</p>
+                </div>
+
+                <!-- Template Mode Empty State -->
+                <div id="template-empty-state" class="empty-state" style="display: none;">
+                    <div class="empty-icon">📝</div>
+                    <h2>Create a New Template</h2>
+                    <p>Upload a medical document (PDF/DOCX) to extract template fields</p>
                 </div>
 
                 <div id="transcription-section" class="result-section" style="display: none;">
@@ -119,6 +128,9 @@
                 <div id="note-section" class="result-section" style="display: none;">
                     <div class="section-header" onclick="toggleSection('note')">
                         <h3>🏥 Medical Note</h3>
+                        <button class="download-btn" onclick="downloadNote()" id="download-note-btn">
+                            <span>💾</span> Download as Word
+                        </button>
                         <span class="toggle-icon">▼</span>
                     </div>
                     <div class="section-content" id="note-content">
@@ -128,10 +140,13 @@
 
                 <div id="template-result-section" class="result-section" style="display: none;">
                     <div class="section-header">
-                        <h3>✅ Template Created</h3>
+                        <h3>✅ Template Created Successfully</h3>
+                        <button class="download-btn" onclick="downloadTemplate()" id="download-template-btn">
+                            <span>💾</span> Download as Word
+                        </button>
                     </div>
                     <div class="section-content" id="template-result-content">
-                        <div id="template-fields"></div>
+                        <div class="template-document" id="template-fields"></div>
                     </div>
                 </div>
             </div>

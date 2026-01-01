@@ -55,7 +55,8 @@ def save_template(name: str, fields: Dict[str, Any]) -> bool:
         conn.close()
         return True
     except Exception as e:
-        print(f"Error saving template: {e}")
+        import logging
+        logging.error(f"Error saving template: {e}")
         return False
 
 def get_template(name: str) -> Optional[Dict[str, Any]]:
@@ -81,7 +82,8 @@ def get_template(name: str) -> Optional[Dict[str, Any]]:
             return json.loads(result[0])
         return None
     except Exception as e:
-        print(f"Error fetching template: {e}")
+        import logging
+        logging.error(f"Error fetching template: {e}")
         return None
 
 def list_templates() -> List[Dict[str, Any]]:
@@ -117,7 +119,8 @@ def list_templates() -> List[Dict[str, Any]]:
         
         return templates
     except Exception as e:
-        print(f"Error listing templates: {e}")
+        import logging
+        logging.error(f"Error listing templates: {e}")
         return []
 
 def delete_template(name: str) -> bool:
@@ -142,7 +145,8 @@ def delete_template(name: str) -> bool:
         
         return deleted
     except Exception as e:
-        print(f"Error deleting template: {e}")
+        import logging
+        logging.error(f"Error deleting template: {e}")
         return False
 
 def count_fields(fields_dict: Dict[str, Any]) -> int:

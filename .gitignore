@@ -211,3 +211,16 @@ __marimo__/
 backend/models/*.gguf
 backend/models/
 !backend/models/.gitkeep
+
+# Application-specific
+*.db
+*.sqlite
+*.sqlite3
+templates.db
+temp_*
+logs/
+*.log
+
+# Uploaded files
+uploads/
+temp_audio_*

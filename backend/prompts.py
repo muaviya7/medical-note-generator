@@ -1,5 +1,17 @@
 # This module contains all LLM prompts
 
+def audio_transcription_prompt():
+    """
+    Prompt for Gemini audio transcription.
+    
+    Returns:
+        str: Transcription prompt
+    """
+    prompt = """Transcribe this audio file accurately. Focus on medical terminology and provide only the transcribed text without any additional commentary, explanations, or formatting."""
+    
+    return prompt
+
+
 def text_cleaner_prompt(transcribed_text):
     """
     Prompt for cleaning and formatting medical transcription text.
@@ -129,6 +141,7 @@ You work as a clinical documentation assistant. Your job is to read conversation
 8. **Keep it factual** - You're documenting, not diagnosing
 9. **Every field must have a value** - Either the extracted info OR "Not mentioned", never leave blank
 10. **Use field descriptions as guidance** - Each field has a description telling you what type of data belongs there
+11. **Preserve medical abbreviations** - Keep abbreviations like bpm, mmHg, mg, mcg, kg, etc. as-is. Do NOT expand them to full forms (e.g., keep "bpm" not "beats per minute", keep "mmHg" not "millimeters of mercury")
 
 ## OUTPUT FORMAT:
 - Must be valid JSON that can be parsed directly
