@@ -26,11 +26,12 @@ from backend.config import TEMPLATE_DIR, ALLOWED_EXTENSIONS, MAX_UPLOAD_SIZE
 app = FastAPI(title="Medical Note Generator API", version="1.0.0")
 
 # Add CORS middleware
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,  # Lock down in production
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["POST", "GET", "DELETE"],  # Only needed methods
     allow_headers=["*"],
 )
 
@@ -476,17 +477,22 @@ async def download_note(request: DownloadNoteRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    from backend.config import HOST, PORT, RELOAD, APP_ENV
+    from backend.config import RELOAD, APP_ENV
+    
+    # Get port and host from environment (Render provides these)
+    port = int(os.getenv("PORT", 8000))
+    host = os.getenv("HOST", "0.0.0.0")
+    reload = os.getenv("RELOAD", "false").lower() == "true" if APP_ENV == "development" else False
     
     # Production-ready configuration
     uvicorn_config = {
-        "host": HOST,
-        "port": PORT,
-        "reload": RELOAD,
+        "host": host,
+        "port": port,
+        "reload": reload,
     }
     
     # Only include reload settings in development
-    if APP_ENV == "development" and RELOAD:
+    if APP_ENV == "development" and reload:
         uvicorn_config.update({
             "reload_dirs": ["./backend", "./"],
             "reload_excludes": [
@@ -505,7 +511,7 @@ if __name__ == "__main__":
             ]
         })
     
-    logger.info(f"Starting server in {APP_ENV} mode on {HOST}:{PORT}")
+    logger.info(f"Starting server in {APP_ENV} mode on {host}:{port}")
     
     uvicorn.run(
         "main:app",

@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 class Gemini:
     """Gemini AI model class for medical text processing"""
     
+    # Fallback models to try when rate limit is hit
+    FALLBACK_MODELS = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-3.0-flash"
+    ]
+    
     def __init__(self):
         """Initialize Gemini client"""
         try:
@@ -25,48 +32,73 @@ class Gemini:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
             raise
     
-    def _call_api_with_retry(self, model, prompt, max_tokens, max_retries=3):
+    def _is_rate_limit_error(self, error):
+        """Check if error is a rate limit error"""
+        error_msg = str(error).lower()
+        return any(keyword in error_msg for keyword in [
+            'rate limit', 'quota', 'resource exhausted', '429', 'too many requests'
+        ])
+    
+    def _call_api_with_retry(self, model, contents, max_tokens, temperature=None, top_p=None, max_retries=3):
         """
-        Call Gemini API with retry logic for network errors
+        Call Gemini API with retry logic and model fallback for rate limits
         
         Args:
             model: Model name to use
-            prompt: Text prompt
+            contents: Text prompt string OR list [prompt, file] for multimodal
             max_tokens: Maximum output tokens
-            max_retries: Number of retry attempts
+            temperature: Temperature (optional, uses config default)
+            top_p: Top P (optional, uses config default)
+            max_retries: Number of retry attempts per model
             
         Returns:
             str: Generated text
         """
-        retry_delay = 2
-        last_error = None
+        models_to_try = [model] + [m for m in self.FALLBACK_MODELS if m != model]
         
-        for attempt in range(max_retries):
-            try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=TEMPERATURE,
-                        top_p=TOP_P,
-                        max_output_tokens=max_tokens
+        for model_name in models_to_try:
+            retry_delay = 2
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            temperature=temperature or TEMPERATURE,
+                            top_p=top_p or TOP_P,
+                            max_output_tokens=max_tokens
+                        )
                     )
-                )
-                return response.text.strip()
-                
-            except Exception as api_error:
-                last_error = api_error
-                error_msg = str(api_error)
-                
-                if "10013" in error_msg or "11001" in error_msg or "timeout" in error_msg.lower():
-                    if attempt < max_retries - 1:
-                        logger.warning(f"API call failed (attempt {attempt + 1}/{max_retries}): {error_msg}")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2
-                        continue
-                raise
+                    
+                    if model_name != model:
+                        logger.info(f"Successfully used fallback model: {model_name}")
+                    
+                    return response.text.strip()
+                    
+                except Exception as api_error:
+                    last_error = api_error
+                    error_msg = str(api_error)
+                    
+                    if self._is_rate_limit_error(api_error):
+                        logger.warning(f"Rate limit hit on {model_name}, trying next model...")
+                        break
+                    
+                    # Network errors - retry same model
+                    if "10013" in error_msg or "11001" in error_msg or "timeout" in error_msg.lower():
+                        if attempt < max_retries - 1:
+                            logger.warning(f"API call failed (attempt {attempt + 1}/{max_retries}): {error_msg}")
+                            time.sleep(retry_delay)
+                            retry_delay *= 2
+                            continue
+                    
+                    raise
+            
+            if last_error and not self._is_rate_limit_error(last_error):
+                raise last_error
         
-        raise last_error
+        raise Exception(f"API rate limit exceeded on all models. Models tried: {', '.join(models_to_try)}")
     
     def gemini_clean_text(self, transcribed_text, model=None):
         """
@@ -200,19 +232,14 @@ class Gemini:
             if audio_file.state == "FAILED":
                 raise RuntimeError("Gemini failed to process audio file")
             
-            # Transcribe using Gemini
-            prompt = audio_transcription_prompt()
-            
-            response = self.client.models.generate_content(
+            # Transcribe using unified API method with fallback
+            from backend.prompts import audio_transcription_prompt
+            transcribed_text = self._call_api_with_retry(
                 model=model,
-                contents=[prompt, audio_file],
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    max_output_tokens=MAX_TOKENS_TRANSCRIPTION
-                )
+                contents=[audio_transcription_prompt(), audio_file],
+                max_tokens=MAX_TOKENS_TRANSCRIPTION,
+                temperature=0.1
             )
-            
-            transcribed_text = response.text.strip()
             
             # Clean up uploaded file
             self.client.files.delete(name=audio_file.name)
@@ -223,10 +250,10 @@ class Gemini:
             })
             
             logger.info(f"Gemini transcription completed: {len(transcribed_text)} characters")
+            return result
             
         except Exception as e:
             error_msg = str(e)
             logger.error(f"Gemini transcription failed: {error_msg}")
             result['error'] = error_msg
-        
-        return result
+            return result

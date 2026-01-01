@@ -3,9 +3,16 @@ import json
 import os
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import logging
 
-# Database path
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "templates.db")
+logger = logging.getLogger(__name__)
+
+# Use /data path on Render (persistent disk), local path otherwise
+DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "..", "templates.db"))
+
+# Ensure directory exists
+os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+logger.info(f"Using database path: {DB_PATH}")
 
 def init_database():
     """Initialize the templates database"""
