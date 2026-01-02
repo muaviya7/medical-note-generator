@@ -2,6 +2,12 @@
 
 A web app that turns doctor-patient conversations into structured medical notes. Upload an audio recording, pick a template, and get a properly formatted medical note in under a minute.
 
+## 🌐 Live Demo
+
+**Try it now:** [https://medical-note-generator.onrender.com/](https://medical-note-generator.onrender.com/)
+
+No installation needed - test the app directly in your browser!
+
 ## What It Does
 
 Instead of spending 10 minutes typing up consultation notes, you:
