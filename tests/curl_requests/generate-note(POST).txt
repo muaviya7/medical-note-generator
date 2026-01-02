@@ -1,0 +1,6 @@
+curl --location 'http://localhost:8000/generate-note' \
+--header 'Content-Type: application/json' \
+--data '{
+    "cleaned_text": "Patient is a 45-year-old male presenting with chest pain for three days. Pain is sharp, worsens with deep breathing. No history of cardiac issues. Vitals stable: BP 130/85, HR 78 bpm.",
+    "template_name": "General Medical Note"
+  }'

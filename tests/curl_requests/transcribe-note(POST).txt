@@ -1,0 +1,2 @@
+curl --location 'http://localhost:8000/transcribe-and-clean' \
+--form 'audio=@"/path/to/file"'
