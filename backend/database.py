@@ -15,7 +15,7 @@ os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
 logger.info(f"Using database path: {DB_PATH}")
 
 def init_database():
-    """Initialize the templates database"""
+    """Initialize the templates database and insert default templates"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -28,6 +28,97 @@ def init_database():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    
+    conn.commit()
+    
+    # Insert default templates if they don't exist
+    default_templates = [
+        {
+            "name": "general_soap_note",
+            "fields": {
+                "patient_name": "Full name of the patient",
+                "age_gender": "Age and gender of patient",
+                "date_of_visit": "Visit date in DD-MMM-YYYY or format shown",
+                "chief_complaint": "Main reason for visit or primary symptom",
+                "history_of_present_illness": "Detailed description of current symptoms and timeline",
+                "relevant_medical_history": "Previous medical conditions, surgeries, or chronic illnesses",
+                "current_medications_allergies": "List of current medications with dosage and known allergies",
+                "physical_examination": {
+                    "vital_signs": {
+                        "temperature": "Body temperature in F or C",
+                        "blood_pressure": "BP reading in mmHg format (systolic/diastolic)",
+                        "heart_rate": "Pulse rate in beats per minute (bpm)",
+                        "respiratory_rate": "Breathing rate per minute",
+                        "oxygen_saturation": "O2 saturation percentage on room air or supplemental O2"
+                    },
+                    "general_findings": "Overall physical exam findings and observations"
+                },
+                "assessment": "Doctor's diagnosis or clinical impression",
+                "plan": "Treatment plan, prescriptions, and recommendations",
+                "follow_up": "Follow-up instructions and timeline"
+            }
+        },
+        {
+            "name": "cardiology_consultation",
+            "fields": {
+                "patient_information": {
+                    "name": "Full name of the patient",
+                    "age": "Patient's age in years",
+                    "gender": "Gender - Male/Female/Other"
+                },
+                "date_of_visit": "Visit date in DD-MMM-YYYY format",
+                "chief_complaint": "Primary cardiac-related complaint or reason for visit",
+                "history_of_present_illness": "Detailed description of cardiac symptoms, onset, duration, and progression",
+                "cardiac_history": {
+                    "previous_cardiac_events": "Previous heart attacks, angina, arrhythmias, or cardiac procedures",
+                    "risk_factors": "Hypertension, diabetes, hyperlipidemia, smoking, family history"
+                },
+                "current_medications": "List of current cardiac medications with dosages",
+                "physical_examination": {
+                    "vital_signs": {
+                        "blood_pressure": "BP reading in mmHg format (systolic/diastolic)",
+                        "heart_rate": "Pulse rate in beats per minute",
+                        "respiratory_rate": "Breathing rate per minute",
+                        "oxygen_saturation": "O2 saturation percentage",
+                        "temperature": "Body temperature"
+                    },
+                    "cardiovascular_exam": {
+                        "heart_sounds": "Description of S1, S2, and any murmurs or gallops",
+                        "peripheral_pulses": "Quality and symmetry of peripheral pulses",
+                        "edema": "Presence and location of edema",
+                        "jvd": "Jugular venous distension findings"
+                    },
+                    "respiratory_exam": "Lung sounds and respiratory findings"
+                },
+                "diagnostic_tests": {
+                    "ecg_findings": "Electrocardiogram results and interpretation",
+                    "echocardiogram": "Echo findings if available",
+                    "lab_results": "Troponin, BNP, lipid panel, and other relevant labs",
+                    "imaging": "Chest X-ray or other cardiac imaging findings"
+                },
+                "assessment": {
+                    "diagnosis": "Primary cardiac diagnosis",
+                    "severity": "Severity assessment and classification"
+                },
+                "treatment_plan": {
+                    "medications": "New or adjusted cardiac medications",
+                    "procedures": "Recommended procedures or interventions",
+                    "lifestyle_modifications": "Diet, exercise, and lifestyle recommendations"
+                },
+                "follow_up": "Follow-up timeline and monitoring plan"
+            }
+        }
+    ]
+    
+    for template in default_templates:
+        try:
+            cursor.execute("""
+                INSERT OR IGNORE INTO templates (name, fields, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
+            """, (template["name"], json.dumps(template["fields"]), datetime.now(), datetime.now()))
+            logger.info(f"Default template '{template['name']}' ensured in database")
+        except Exception as e:
+            logger.error(f"Error inserting default template '{template['name']}': {e}")
     
     conn.commit()
     conn.close()
