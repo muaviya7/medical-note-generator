@@ -163,7 +163,7 @@ medical-note-generator/
 │   ├── note_generator.py       # Generate notes
 │   ├── template_generator.py   # Extract templates
 │   ├── note_formatter.py       # Format output
-│   ├── docx_generator.py       # Word document creation
+│   ├── docx_generator.py       # Word document generation
 │   ├── prompts.py              # AI prompts
 │   │
 │   └── LLM/
@@ -210,17 +210,6 @@ After deploy, update in Render:
 ```
 ALLOWED_ORIGINS=https://your-app.onrender.com
 ```
-
-### Default Templates
-
-On every deploy or first run, the app automatically creates two starter templates:
-
-1. **general_soap_note** - Standard medical consultation template
-2. **cardiology_consultation** - Cardiac-focused examination template
-
-These templates are immediately available for testing without needing to create your own first.
-
-**Note:** On free Render tier, the database is ephemeral (resets on each deploy). Default templates are automatically recreated. For persistent storage, upgrade to a paid plan with disk storage.
 
 ## Development Mode
 
