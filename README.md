@@ -18,7 +18,8 @@ The app handles transcription, cleanup, and structuring everything according to 
 - **Smart Formatting** - Understands medical terminology and structures information properly
 - **Custom Templates** - Upload any PDF/Word medical form and it learns the format
 - **Template Library** - Save frequently used note templates in SQLite database
-- **Export to Word** - Download notes as `.docx` files
+- **Default Templates** - Two pre-loaded templates ready to use (General SOAP Note, Cardiology Consultation)
+- **Export to Word** - Download notes as `.docx` files with proper formatting
 - **Rate Limit Protection** - Automatically tries 4 different AI models if one hits quota
 
 ## Technology
@@ -156,7 +157,7 @@ medical-note-generator/
 │
 ├── backend/
 │   ├── config.py               # App settings
-│   ├── database.py             # Template storage
+│   ├── database.py             # Template storage + default templates
 │   ├── transcription.py        # Audio → text
 │   ├── text_cleaner.py         # Clean transcriptions
 │   ├── note_generator.py       # Generate notes
